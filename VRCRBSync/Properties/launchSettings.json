@@ -1,0 +1,10 @@
+{
+  "profiles": {
+    "VRCRBSync (Package)": {
+      "commandName": "MsixPackage"
+    },
+    "VRCRBSync (Unpackaged)": {
+      "commandName": "Project"
+    }
+  }
+}
