@@ -1,10 +1,10 @@
-﻿using System;
+﻿using System.Globalization;
 
 namespace VRCRBSync;
 
 public sealed class AppResources
 {
-    private static string _currentLanguage = "ja"; // "ja" or "en"
+    private static string _currentLanguage = CultureInfo.CurrentUICulture.TwoLetterISOLanguageName;
 
     public static string CurrentLanguage
     {
@@ -68,7 +68,7 @@ public sealed class AppResources
         // Dashboard
         "dashboard_now_playing" => "Now Playing",
         "dashboard_waiting_for_track" => "Waiting for track...",
-        "dashboard_rekordbox_not_running" => "rekordbox isn't running",
+        "dashboard_rekordbox_not_running" => "No music is playing.",
         "dashboard_osc_disconnected" => "OSC Disconnected",
         "dashboard_sync_active" => "Sync Active",
         "dashboard_start_sync" => "Start Sync",
@@ -111,7 +111,7 @@ public sealed class AppResources
         // Dashboard
         "dashboard_now_playing" => "現在再生中",
         "dashboard_waiting_for_track" => "トラック待機中...",
-        "dashboard_rekordbox_not_running" => "rekordboxが実行されていません",
+        "dashboard_rekordbox_not_running" => "楽曲が再生されていません",
         "dashboard_osc_disconnected" => "OSC 接続解除",
         "dashboard_sync_active" => "同期活動中",
         "dashboard_start_sync" => "同期開始",

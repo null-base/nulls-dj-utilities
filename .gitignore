@@ -428,3 +428,4 @@ FodyWeavers.xsd
 *.msp
 
 .idea/
+build_log.txt

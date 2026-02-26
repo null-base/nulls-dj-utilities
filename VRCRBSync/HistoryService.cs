@@ -1,6 +1,6 @@
 using System;
-using System.Collections.Generic;
 using System.Collections.ObjectModel;
+using Microsoft.UI.Xaml;
 
 namespace VRCRBSync;
 
@@ -12,12 +12,14 @@ public sealed class HistoryEntry
     public DateTime PlayedAt { get; init; } = DateTime.Now;
 
     public string PlayedAtFormatted => PlayedAt.ToString("HH:mm:ss");
+    public Visibility ArtistVisibility => string.IsNullOrWhiteSpace(Artist) ? Visibility.Collapsed : Visibility.Visible;
+    public Visibility AlbumVisibility => string.IsNullOrWhiteSpace(Album) ? Visibility.Collapsed : Visibility.Visible;
 }
 
 public sealed class HistoryService
 {
-    private static readonly Lazy<HistoryService> _instance = new(() => new HistoryService());
-    public static HistoryService Instance => _instance.Value;
+    private static readonly Lazy<HistoryService> Lazy = new(() => new HistoryService());
+    public static HistoryService Instance => Lazy.Value;
 
     public ObservableCollection<HistoryEntry> Entries { get; } = new();
 

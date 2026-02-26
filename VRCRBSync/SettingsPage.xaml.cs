@@ -1,4 +1,5 @@
 using System;
+using System.Runtime.InteropServices.WindowsRuntime;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 
@@ -88,6 +89,6 @@ public sealed partial class SettingsPage : Page
             CloseButtonText = "OK",
             XamlRoot = this.XamlRoot
         };
-        await dialog.ShowAsync();
+        await dialog.ShowAsync().AsTask();
     }
 }

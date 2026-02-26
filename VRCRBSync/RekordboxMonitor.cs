@@ -1,8 +1,6 @@
 using System;
 using System.IO;
 using System.Diagnostics;
-using System.Runtime.InteropServices;
-using System.Text;
 using Microsoft.Data.Sqlite;
 
 namespace VRCRBSync;
@@ -18,13 +16,6 @@ public sealed class RekordboxMonitor : IDisposable
 
     private const string DbPassword = "402fd482c38817c35ffa8ffb8c7d93143b749e7d315df7a81732a1ff43608497";
 
-
-    [DllImport("user32.dll", SetLastError = true, CharSet = CharSet.Unicode)]
-    private static extern int GetWindowTextLength(IntPtr hWnd);
-
-    [DllImport("user32.dll", SetLastError = true, CharSet = CharSet.Unicode)]
-    private static extern int GetWindowText(IntPtr hWnd, StringBuilder lpString, int nMaxCount);
-    
     public static bool IsRekordboxRunning()
     {
         var processes = Process.GetProcessesByName("rekordbox");
@@ -105,10 +96,10 @@ public sealed class RekordboxMonitor : IDisposable
         using var reader = cmd.ExecuteReader();
         if (!reader.Read()) return null;
 
-        var title = reader.IsDBNull(0) ? "Unknown Title" : reader.GetString(0);
+        var title = reader.IsDBNull(0) ? "" : reader.GetString(0);
         var folderPath = reader.IsDBNull(1) ? "" : reader.GetString(1);
-        var artistName = reader.IsDBNull(2) ? "Unknown Artist" : reader.GetString(2);
-        var albumName = reader.IsDBNull(3) ? "Unknown Album" : reader.GetString(3);
+        var artistName = reader.IsDBNull(2) ? "" : reader.GetString(2);
+        var albumName = reader.IsDBNull(3) ? "" : reader.GetString(3);
         var imagePath = reader.IsDBNull(4) ? null : reader.GetString(4);
 
       byte[]? albumArt = LoadAlbumArt(imagePath);

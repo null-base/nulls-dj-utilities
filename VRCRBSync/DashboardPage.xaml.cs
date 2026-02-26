@@ -59,15 +59,9 @@ public sealed partial class DashboardPage : Page
         DispatcherQueue.TryEnqueue(() =>
         {
             SetSyncUI(args.IsSyncing);
-            if (args.IsSyncing)
-            {
-                StatusText.Text = _syncManager.StatusText;
-            }
-            else
-            {
-                StatusText.Text = AppResources.DashboardOscDisconnected;
-                ShowNoTrack();
-            }
+            StatusText.Text = args.IsSyncing
+                ? _syncManager.StatusText
+                : AppResources.DashboardOscDisconnected;
         });
     }
 
@@ -77,9 +71,11 @@ public sealed partial class DashboardPage : Page
         {
             if (track is not null)
             {
-                TitleText.Text = track.Title;
+                TitleText.Text = string.IsNullOrWhiteSpace(track.Title) ? AppResources.DashboardWaitingForTrack : track.Title;
                 ArtistText.Text = track.Artist;
+                ArtistText.Visibility = string.IsNullOrWhiteSpace(track.Artist) ? Visibility.Collapsed : Visibility.Visible;
                 AlbumText.Text = track.Album;
+                AlbumText.Visibility = string.IsNullOrWhiteSpace(track.Album) ? Visibility.Collapsed : Visibility.Visible;
                 await UpdateAlbumArt(track.AlbumArt);
             }
             else
@@ -100,7 +96,9 @@ public sealed partial class DashboardPage : Page
     {
         TitleText.Text = AppResources.DashboardWaitingForTrack;
         ArtistText.Text = AppResources.DashboardRekordboxNotRunning;
+        ArtistText.Visibility = Visibility.Visible;
         AlbumText.Text = "";
+        AlbumText.Visibility = Visibility.Collapsed;
         AlbumArtBrush.ImageSource = null;
         AlbumArtPlaceholder.Visibility = Visibility.Visible;
     }
@@ -113,15 +111,19 @@ public sealed partial class DashboardPage : Page
         var track = _syncManager.CurrentTrack;
         if (track is not null)
         {
-            TitleText.Text = track.Title;
+            TitleText.Text = string.IsNullOrWhiteSpace(track.Title) ? AppResources.DashboardWaitingForTrack : track.Title;
             ArtistText.Text = track.Artist;
+            ArtistText.Visibility = string.IsNullOrWhiteSpace(track.Artist) ? Visibility.Collapsed : Visibility.Visible;
             AlbumText.Text = track.Album;
+            AlbumText.Visibility = string.IsNullOrWhiteSpace(track.Album) ? Visibility.Collapsed : Visibility.Visible;
         }
         else
         {
             TitleText.Text = AppResources.DashboardWaitingForTrack;
             ArtistText.Text = AppResources.DashboardRekordboxNotRunning;
+            ArtistText.Visibility = Visibility.Visible;
             AlbumText.Text = "";
+            AlbumText.Visibility = Visibility.Collapsed;
         }
     }
 
@@ -138,9 +140,9 @@ public sealed partial class DashboardPage : Page
         {
             var bitmapImage = new BitmapImage();
             using var stream = new InMemoryRandomAccessStream();
-            await stream.WriteAsync(albumArtData.AsBuffer());
+            await stream.WriteAsync(albumArtData.AsBuffer()).AsTask();
             stream.Seek(0);
-            await bitmapImage.SetSourceAsync(stream);
+            await bitmapImage.SetSourceAsync(stream).AsTask();
             AlbumArtBrush.ImageSource = bitmapImage;
             AlbumArtPlaceholder.Visibility = Visibility.Collapsed;
         }

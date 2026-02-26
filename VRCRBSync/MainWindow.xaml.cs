@@ -1,8 +1,6 @@
 using Microsoft.UI;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
-using Windows.Graphics;
-using Windows.UI;
 
 namespace VRCRBSync;
 
@@ -13,7 +11,7 @@ public sealed partial class MainWindow
         InitializeComponent();
         Title = "VRCRBSync";
         ExtendsContentIntoTitleBar = true;
-        AppWindow.Resize(new SizeInt32 { Width = 1100, Height = 800 });
+        SetTitleBar(AppTitleBar);
         SetupTitleBar();
     }
 
@@ -27,7 +25,6 @@ public sealed partial class MainWindow
         if (MainNav.MenuItems[1] is NavigationViewItem history)
             history.Content = AppResources.NavHistory;
 
-        // NavigationViewのビルトインSettingsアイテムのテキストを上書き
         if (MainNav.SettingsItem is NavigationViewItem settingsItem)
             settingsItem.Content = AppResources.NavSettings;
     }
@@ -36,8 +33,8 @@ public sealed partial class MainWindow
     {
         var titleBar = AppWindow.TitleBar;
         titleBar.ExtendsContentIntoTitleBar = true;
-        titleBar.ButtonBackgroundColor = Color.FromArgb(0, 0, 0, 0);
-        titleBar.ButtonInactiveBackgroundColor = Color.FromArgb(0, 0, 0, 0);
+        titleBar.ButtonBackgroundColor = Windows.UI.Color.FromArgb(0, 0, 0, 0);
+        titleBar.ButtonInactiveBackgroundColor = Windows.UI.Color.FromArgb(0, 0, 0, 0);
         titleBar.ButtonForegroundColor = Colors.White;
         titleBar.ButtonHoverForegroundColor = Colors.White;
         titleBar.ButtonPressedForegroundColor = Colors.White;

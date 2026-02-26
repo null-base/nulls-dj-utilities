@@ -38,9 +38,12 @@
                         <StackPanel Grid.Column="1" Spacing="2">
                             <TextBlock Text="{x:Bind Title}" FontSize="14" FontWeight="SemiBold" Foreground="White" TextTrimming="CharacterEllipsis"/>
                             <StackPanel Orientation="Horizontal" Spacing="8">
-                                <TextBlock Text="{x:Bind Artist}" FontSize="12" Foreground="Gray" TextTrimming="CharacterEllipsis"/>
-                                <TextBlock Text="?" FontSize="12" Foreground="#555555"/>
-                                <TextBlock Text="{x:Bind Album}" FontSize="12" Foreground="#666666" TextTrimming="CharacterEllipsis"/>
+                                <TextBlock Text="{x:Bind Artist}" FontSize="12" Foreground="Gray" TextTrimming="CharacterEllipsis"
+                                           Visibility="{x:Bind ArtistVisibility}"/>
+                                <TextBlock Text="·" FontSize="12" Foreground="#555555"
+                                           Visibility="{x:Bind AlbumVisibility}"/>
+                                <TextBlock Text="{x:Bind Album}" FontSize="12" Foreground="#666666" TextTrimming="CharacterEllipsis"
+                                           Visibility="{x:Bind AlbumVisibility}"/>
                             </StackPanel>
                         </StackPanel>
                     </Grid>

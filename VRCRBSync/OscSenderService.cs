@@ -32,7 +32,10 @@ public sealed class OscSenderService : IDisposable
             SendChatboxMessage(message, true, settings.SendNotificationSound);
             _lastSentMessage = message;
         }
-        catch { /* VRChat未起動など */ }
+        catch
+        {
+            // VRChat未起動など
+        }
     }
 
     /// <summary>
@@ -46,7 +49,10 @@ public sealed class OscSenderService : IDisposable
         {
             SendChatboxMessage(_lastSentMessage, true, false);
         }
-        catch { /* ignore */ }
+        catch
+        {
+            // ignore
+        }
     }
 
     public void ClearChatbox()
@@ -56,7 +62,10 @@ public sealed class OscSenderService : IDisposable
             SendChatboxMessage("", true, false);
             _lastSentMessage = null;
         }
-        catch { /* ignore */ }
+        catch
+        {
+            // ignore
+        }
     }
 
     /// <summary>
@@ -67,9 +76,17 @@ public sealed class OscSenderService : IDisposable
     {
         using var ms = new MemoryStream();
 
+        // OSC Address
         WriteOscString(ms, "/chatbox/input");
-        WriteOscString(ms, ",s" + (bypass ? "T" : "F") + (notify ? "T" : "F"));
+
+        // OSC Type Tag String: comma + 's' for string + 'T'/'F' for each bool
+        var typeTag = ",s" + (bypass ? "T" : "F") + (notify ? "T" : "F");
+        WriteOscString(ms, typeTag);
+
+        // OSC String argument (UTF-8)
         WriteOscString(ms, text);
+
+        // Note: Boolean True/False are encoded only in the type tag (no payload bytes)
 
         var data = ms.ToArray();
         _udpClient.Send(data, data.Length, _host, _port);
@@ -79,8 +96,11 @@ public sealed class OscSenderService : IDisposable
     {
         var bytes = Encoding.UTF8.GetBytes(str);
         ms.Write(bytes, 0, bytes.Length);
+        // Null terminator
         ms.WriteByte(0);
-        var padding = (4 - (bytes.Length + 1) % 4) % 4;
+        // Pad to 4-byte boundary
+        var totalLen = bytes.Length + 1;
+        var padding = (4 - totalLen % 4) % 4;
         for (var i = 0; i < padding; i++)
             ms.WriteByte(0);
     }

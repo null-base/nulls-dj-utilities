@@ -16,15 +16,35 @@ public sealed class AppSettings
     public string OscHost { get; set; } = "127.0.0.1";
     public int OscPort { get; set; } = 9000;
     public int PollingIntervalMs { get; set; } = 3000;
-    public string MessageFormat { get; set; } = "♫ {title} - {artist} - {album}";
-    public bool SendNotificationSound { get; set; } = false;
+    public string MessageFormat { get; set; } = "♫ {title} - {artist}";
+    public bool SendNotificationSound { get; set; }
 
     public string FormatMessage(TrackInfo track)
     {
-        return MessageFormat
-            .Replace("{title}", track.Title)
-            .Replace("{artist}", track.Artist)
-            .Replace("{album}", track.Album);
+        var result = MessageFormat;
+
+        // 空のフィールドはプレースホルダーごと除去し、余分な区切りも整理
+        result = ReplaceOrRemove(result, "{title}", track.Title);
+        result = ReplaceOrRemove(result, "{artist}", track.Artist);
+        result = ReplaceOrRemove(result, "{album}", track.Album);
+
+        // 連続する区切り文字（" - "）を整理
+        while (result.Contains(" -  - "))
+            result = result.Replace(" -  - ", " - ");
+        result = result.Trim(' ', '-');
+        // 先頭のシンボル(♫等)の後のスペースと区切りを整理
+        if (result.Length > 0 && result[^1] == '-')
+            result = result.TrimEnd(' ', '-');
+
+        return result.Trim();
+    }
+
+    private static string ReplaceOrRemove(string format, string placeholder, string value)
+    {
+        if (!string.IsNullOrWhiteSpace(value))
+            return format.Replace(placeholder, value);
+
+        return format.Replace(placeholder, "");
     }
 
     public void Save()

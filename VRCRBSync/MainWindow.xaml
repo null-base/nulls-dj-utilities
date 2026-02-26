@@ -21,6 +21,7 @@
         <NavigationView x:Name="MainNav" Grid.Row="1" PaneDisplayMode="Left"
                         IsSettingsVisible="True"
                         IsBackButtonVisible="Collapsed"
+                        IsPaneToggleButtonVisible="False"
                         ItemInvoked="MainNav_ItemInvoked"
                         Loaded="MainNav_Loaded">
             <NavigationView.MenuItems>
