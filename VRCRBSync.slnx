@@ -1,9 +1,0 @@
-<Solution>
-  <Configurations>
-    <Platform Name="x64" />
-  </Configurations>
-  <Project Path="VRCRBSync/VRCRBSync.csproj">
-    <Platform Project="x64" />
-    <Deploy />
-  </Project>
-</Solution>

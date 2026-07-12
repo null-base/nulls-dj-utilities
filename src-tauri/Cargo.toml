@@ -1,0 +1,21 @@
+[package]
+name = "nulls-dj-utilities"
+version = "1.0.0"
+description = "Sync rekordbox now playing metadata to VRChat OSC and OBS browser sources."
+authors = ["null_base"]
+edition = "2021"
+license = "MIT"
+
+[lib]
+name = "nulls_dj_utilities_lib"
+crate-type = ["staticlib", "cdylib", "rlib"]
+
+[build-dependencies]
+tauri-build = { version = "2", features = [] }
+
+[dependencies]
+base64 = "0.22"
+rusqlite = { version = "0.40", features = ["bundled-sqlcipher-vendored-openssl"] }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+tauri = { version = "2", features = [] }

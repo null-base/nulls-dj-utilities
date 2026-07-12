@@ -1,0 +1,152 @@
+<!doctype html>
+<html lang="ja">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>null's DJ Utilities</title>
+    <link rel="stylesheet" href="./styles.css" />
+  </head>
+  <body>
+    <div class="shell">
+      <aside class="sidebar">
+        <div class="brand">
+          <div class="brand-mark">♫</div>
+          <div>
+            <strong>null's DJ Utilities</strong>
+          </div>
+        </div>
+        <nav>
+          <button class="nav active" data-view="dashboard">Dashboard</button>
+          <button class="nav" data-view="history">History</button>
+          <button class="nav" data-view="settings">Settings</button>
+        </nav>
+      </aside>
+
+      <main>
+        <section id="dashboard" class="view active">
+          <h1>Now Playing</h1>
+          <div class="now-card">
+            <div class="record">
+              <img id="album-art" alt="" hidden />
+              <div class="record-label">♫</div>
+            </div>
+            <div class="track-copy">
+              <div id="track-title">Waiting for track...</div>
+              <div id="track-artist">No music is playing.</div>
+              <div id="track-album"></div>
+              <div id="rekordbox-status"></div>
+            </div>
+          </div>
+
+          <div class="stat-grid">
+            <div class="stat">
+              <span>OSC</span>
+              <strong
+                ><i id="sync-dot"></i
+                ><b id="sync-label">Disconnected</b></strong
+              >
+            </div>
+            <div class="stat">
+              <span>Destination</span>
+              <strong id="osc-destination">127.0.0.1:9000</strong>
+            </div>
+            <div class="stat">
+              <span>OBS</span>
+              <strong id="obs-url">0.0.0.0:17777</strong>
+            </div>
+          </div>
+
+          <div class="actions">
+            <button class="primary" id="start-button">Start Sync</button>
+            <button id="stop-button" disabled>Stop Sync</button>
+          </div>
+        </section>
+
+        <section id="history" class="view">
+          <div class="section-row">
+            <h1>History</h1>
+            <button id="clear-history">Clear History</button>
+          </div>
+          <div id="history-list" class="history-list"></div>
+          <div id="history-empty" class="empty">No tracks in history</div>
+        </section>
+
+        <section id="settings" class="view">
+          <div class="section-row">
+            <h1>Settings</h1>
+            <span id="save-state"></span>
+          </div>
+
+          <form id="settings-form" class="settings-grid">
+            <fieldset>
+              <legend>OSC Connection</legend>
+              <label>
+                <span>Host</span>
+                <input id="osc-host" autocomplete="off" />
+              </label>
+              <p>
+                Use the VRChat PC IP for another PC, or 127.0.0.1 for this PC.
+              </p>
+              <label>
+                <span>Port</span>
+                <input id="osc-port" type="number" min="1" max="65535" />
+              </label>
+              <label>
+                <span>Send Delay (ms)</span>
+                <input
+                  id="osc-delay"
+                  type="number"
+                  min="0"
+                  max="30000"
+                  step="100"
+                />
+              </label>
+            </fieldset>
+
+            <fieldset>
+              <legend>Message Format</legend>
+              <textarea id="message-format" rows="3"></textarea>
+              <p>Variables: {title}, {artist}, {album}</p>
+              <div id="format-preview" class="preview"></div>
+            </fieldset>
+
+            <fieldset>
+              <legend>Monitoring</legend>
+              <label>
+                <span>Polling Interval (ms)</span>
+                <input
+                  id="polling-interval"
+                  type="number"
+                  min="500"
+                  max="30000"
+                  step="500"
+                />
+              </label>
+              <label class="checkbox">
+                <input id="notification-sound" type="checkbox" />
+                <span>Notification sound on track change</span>
+              </label>
+            </fieldset>
+
+            <fieldset>
+              <legend>OBS Browser Source</legend>
+              <label>
+                <span>Port</span>
+                <input id="obs-port" type="number" min="1" max="65535" />
+              </label>
+              <code id="obs-preview">http://0.0.0.0:17777/</code>
+              <label>
+                <span>Custom HTML</span>
+                <textarea id="obs-html" rows="9" spellcheck="false"></textarea>
+              </label>
+              <p>Port changes take effect after restarting the app.</p>
+            </fieldset>
+
+            <button class="primary save" type="submit">Save Settings</button>
+          </form>
+        </section>
+      </main>
+    </div>
+    <script type="module" src="./main.js"></script>
+  </body>
+</html>

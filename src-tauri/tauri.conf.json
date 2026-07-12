@@ -1,0 +1,33 @@
+{
+  "$schema": "https://schema.tauri.app/config/2",
+  "productName": "null's DJ Utilities",
+  "version": "1.0.0",
+  "identifier": "com.null-base.nulls-dj-utilities",
+  "build": {
+    "frontendDist": "../ui"
+  },
+  "app": {
+    "withGlobalTauri": true,
+    "windows": [
+      {
+        "title": "null's DJ Utilities",
+        "width": 980,
+        "height": 660,
+        "minWidth": 820,
+        "minHeight": 560,
+        "resizable": true
+      }
+    ],
+    "security": {
+      "csp": null
+    }
+  },
+  "bundle": {
+    "active": true,
+    "targets": "all",
+    "category": "Music",
+    "icon": [
+      "icons/icon.png"
+    ]
+  }
+}
