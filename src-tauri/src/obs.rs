@@ -4,6 +4,9 @@ use std::{
     thread,
 };
 
+use base64::{engine::general_purpose::STANDARD as BASE64, Engine};
+use qrcode::{render::svg, QrCode};
+
 use crate::{models::ObsPayload, state::SharedState};
 
 pub(crate) fn spawn_obs_server(state: SharedState) {
@@ -59,6 +62,13 @@ fn obs_payload(state: &SharedState) -> ObsPayload {
             artist: track.artist.clone(),
             album: track.album.clone(),
             album_art_data_url: track.album_art_data_url.clone(),
+            qr_code_data_url: inner
+                .settings
+                .obs_show_qr
+                .then(|| inner.settings.obs_qr_urls.get(&track.key()))
+                .flatten()
+                .map(String::as_str)
+                .and_then(qr_code_data_url),
             message: inner.settings.format_message(track),
             is_playing: true,
         }
@@ -68,10 +78,27 @@ fn obs_payload(state: &SharedState) -> ObsPayload {
             artist: String::new(),
             album: String::new(),
             album_art_data_url: None,
+            qr_code_data_url: None,
             message: String::new(),
             is_playing: false,
         }
     }
+}
+
+fn qr_code_data_url(url: &str) -> Option<String> {
+    let url = url.trim();
+    if url.is_empty() {
+        return None;
+    }
+
+    let code = QrCode::new(url).ok()?;
+    let svg = code
+        .render::<svg::Color>()
+        .min_dimensions(128, 128)
+        .dark_color(svg::Color("#111"))
+        .light_color(svg::Color("#fff"))
+        .build();
+    Some(format!("data:image/svg+xml;base64,{}", BASE64.encode(svg)))
 }
 
 fn write_http_response(stream: &mut TcpStream, content_type: &str, body: &str) {
@@ -109,6 +136,9 @@ const OBS_HTML: &str = r##"<!doctype html>
     box-shadow: 0 18px 52px rgba(0,0,0,.38);
     color: white;
     text-shadow: 0 2px 6px rgba(0,0,0,.45);
+  }
+  #wrap.loaded {
+    animation: pageLoad .82s cubic-bezier(.18,.8,.18,1) both;
   }
   #recordSlot {
     position: relative;
@@ -199,6 +229,20 @@ const OBS_HTML: &str = r##"<!doctype html>
     font-size: 22px;
     overflow-wrap: anywhere;
   }
+  #qrSlot {
+    flex: 0 0 auto;
+    width: 116px;
+    height: 116px;
+    padding: 8px;
+    border-radius: 16px;
+    background: rgba(255,255,255,.94);
+    box-shadow: 0 12px 28px rgba(0,0,0,.28);
+  }
+  #qr {
+    display: block;
+    width: 100%;
+    height: 100%;
+  }
   #wrap.changed {
     animation: wrapChange .6s ease both;
   }
@@ -220,8 +264,15 @@ const OBS_HTML: &str = r##"<!doctype html>
   #wrap.changed #meta {
     animation: textLine .54s cubic-bezier(.18,.8,.18,1) .14s both;
   }
+  #wrap.changed #qrSlot {
+    animation: qrChange .5s ease .18s both;
+  }
   .hidden { display: none !important; }
   @keyframes spin { to { transform: rotate(360deg); } }
+  @keyframes pageLoad {
+    0% { opacity: 0; transform: translateY(18px) scale(.985); filter: blur(8px); }
+    100% { opacity: 1; transform: translateY(0) scale(1); filter: blur(0); }
+  }
   @keyframes wrapChange {
     0% { opacity: .94; filter: brightness(1.08); }
     100% { opacity: 1; filter: brightness(1); }
@@ -250,6 +301,10 @@ const OBS_HTML: &str = r##"<!doctype html>
     0% { opacity: 0; transform: translateX(18px); }
     100% { opacity: 1; transform: translateY(0); }
   }
+  @keyframes qrChange {
+    0% { opacity: 0; transform: translateX(12px) scale(.96); }
+    100% { opacity: 1; transform: translateX(0) scale(1); }
+  }
 </style>
 <div id="wrap" class="hidden">
   <div id="recordSlot">
@@ -264,6 +319,9 @@ const OBS_HTML: &str = r##"<!doctype html>
     <div id="artist"></div>
     <div id="meta"></div>
   </div>
+  <div id="qrSlot" class="hidden">
+    <img id="qr" alt="">
+  </div>
 </div>
 <script>
 const wrap = document.querySelector("#wrap");
@@ -274,6 +332,8 @@ const artFallback = document.querySelector("#artFallback");
 const title = document.querySelector("#title");
 const artist = document.querySelector("#artist");
 const meta = document.querySelector("#meta");
+const qrSlot = document.querySelector("#qrSlot");
+const qr = document.querySelector("#qr");
 let lastTrackKey = "";
 let renderedTitle = "";
 let titleTimer = 0;
@@ -282,15 +342,19 @@ async function tick() {
     const track = await fetch("/track", { cache: "no-store" }).then(r => r.json());
     const trackKey = track.isPlaying ? [track.title, track.artist, track.album].join("\n") : "";
     const changed = trackKey && trackKey !== lastTrackKey;
+    const firstVisible = track.isPlaying && !wrap.classList.contains("loaded");
     if (changed) cloneOutgoingRecord();
     wrap.classList.toggle("hidden", !track.isPlaying);
+    if (firstVisible) wrap.classList.add("loaded");
     renderTitle(track.title || track.message || "", changed);
     artist.textContent = track.artist || "";
     meta.textContent = track.album || "";
     art.classList.toggle("hidden", !track.albumArtDataUrl);
     artFallback.classList.toggle("hidden", !!track.albumArtDataUrl);
     if (track.albumArtDataUrl && art.src !== track.albumArtDataUrl) art.src = track.albumArtDataUrl;
-    if (changed) restartAnimation();
+    qrSlot.classList.toggle("hidden", !track.qrCodeDataUrl);
+    if (track.qrCodeDataUrl && qr.src !== track.qrCodeDataUrl) qr.src = track.qrCodeDataUrl;
+    if (changed && !firstVisible) restartAnimation();
     lastTrackKey = trackKey;
   } catch (_) {}
 }

@@ -60,6 +60,13 @@
             <button class="primary" id="start-button">Start Sync</button>
             <button id="stop-button" disabled>Stop Sync</button>
           </div>
+
+          <div class="qr-editor">
+            <label>
+              <span>QR URL for this track</span>
+              <input id="track-qr-url" type="url" autocomplete="off" />
+            </label>
+          </div>
         </section>
 
         <section id="history" class="view">
@@ -135,6 +142,10 @@
                 <input id="obs-port" type="number" min="1" max="65535" />
               </label>
               <code id="obs-preview">http://0.0.0.0:17777/</code>
+              <label class="checkbox">
+                <input id="obs-show-qr" type="checkbox" />
+                <span>Show QR code</span>
+              </label>
               <label>
                 <span>Custom HTML</span>
                 <textarea id="obs-html" rows="9" spellcheck="false"></textarea>

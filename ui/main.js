@@ -11,6 +11,7 @@ const el = {
   artist: $("#track-artist"),
   album: $("#track-album"),
   rekordboxStatus: $("#rekordbox-status"),
+  qrUrl: $("#track-qr-url"),
   syncDot: $("#sync-dot"),
   syncLabel: $("#sync-label"),
   destination: $("#osc-destination"),
@@ -31,6 +32,7 @@ const el = {
   notification: $("#notification-sound"),
   obsPort: $("#obs-port"),
   obsPreview: $("#obs-preview"),
+  obsShowQr: $("#obs-show-qr"),
   obsHtml: $("#obs-html"),
 };
 
@@ -39,6 +41,7 @@ let editingSettings = false;
 let saveTimer = 0;
 let autoSaveTimer = 0;
 let lastTrackKey = null;
+let editingQrUrl = false;
 
 for (const button of navButtons) {
   button.addEventListener("click", () => {
@@ -52,6 +55,20 @@ el.start.addEventListener("click", async () => {
 });
 el.stop.addEventListener("click", async () => render(await invoke("stop_sync")));
 el.clearHistory.addEventListener("click", async () => render(await invoke("clear_history")));
+
+el.qrUrl.addEventListener("focusin", () => {
+  editingQrUrl = true;
+});
+
+el.qrUrl.addEventListener("focusout", () => {
+  editingQrUrl = false;
+  renderDashboard();
+});
+
+el.qrUrl.addEventListener("input", () => {
+  editingQrUrl = true;
+  scheduleAutoSave();
+});
 
 el.form.addEventListener("focusin", () => {
   editingSettings = true;
@@ -77,6 +94,7 @@ for (const input of [
   el.interval,
   el.notification,
   el.obsPort,
+  el.obsShowQr,
   el.obsHtml,
 ]) {
   input.addEventListener(input.type === "checkbox" ? "change" : "input", () => {
@@ -113,10 +131,20 @@ function renderDashboard() {
   el.rekordboxStatus.textContent = snapshot.rekordboxStatus || "";
   el.albumArt.hidden = !track?.albumArtDataUrl;
   el.albumArt.src = track?.albumArtDataUrl || "";
+  renderQrUrl(track);
 
-  const trackKey = track ? [track.title, track.artist, track.album, track.filePath].join("\n") : "";
-  if (trackKey && trackKey !== lastTrackKey) restartAnimation(el.nowCard, "track-changed");
-  lastTrackKey = trackKey;
+  const key = trackKey(track);
+  if (key && key !== lastTrackKey) restartAnimation(el.nowCard, "track-changed");
+  lastTrackKey = key;
+}
+
+function renderQrUrl(track) {
+  const key = trackKey(track);
+  el.qrUrl.disabled = !key;
+  el.qrUrl.placeholder = key ? "https://..." : "Play a track to set a URL";
+  if (!editingQrUrl) {
+    el.qrUrl.value = key ? snapshot.settings.obsQrUrls?.[key] || "" : "";
+  }
 }
 
 function renderHistory() {
@@ -161,6 +189,7 @@ function renderSettings() {
   el.interval.value = settings.pollingIntervalMs;
   el.notification.checked = settings.sendNotificationSound;
   el.obsPort.value = settings.obsPort;
+  el.obsShowQr.checked = settings.obsShowQr;
   el.obsHtml.value = settings.obsHtml;
   updateSettingsPreview();
 }
@@ -174,8 +203,26 @@ function readSettings() {
     messageFormat: el.format.value,
     sendNotificationSound: el.notification.checked,
     obsPort: clamp(safeNumber(el.obsPort.value, 17777), 1, 65535),
+    obsShowQr: el.obsShowQr.checked,
+    obsQrUrls: readQrUrls(),
     obsHtml: el.obsHtml.value,
   };
+}
+
+function readQrUrls() {
+  const urls = { ...(snapshot?.settings?.obsQrUrls ?? {}) };
+  const key = trackKey(snapshot?.currentTrack);
+  if (!key) return urls;
+
+  const url = el.qrUrl.value.trim();
+  if (url) urls[key] = url;
+  else delete urls[key];
+  return urls;
+}
+
+function trackKey(track) {
+  if (!track) return "";
+  return track.filePath?.trim() || [track.title, track.artist, track.album].join("|");
 }
 
 function updatePreview() {

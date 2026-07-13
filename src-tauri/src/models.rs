@@ -1,5 +1,5 @@
 use serde::{Deserialize, Serialize};
-use std::{fs, path::PathBuf};
+use std::{collections::BTreeMap, fs, path::PathBuf};
 
 use crate::util::{replace_or_remove, settings_path};
 
@@ -14,6 +14,8 @@ pub(crate) struct AppSettings {
     pub(crate) message_format: String,
     pub(crate) send_notification_sound: bool,
     pub(crate) obs_port: u16,
+    pub(crate) obs_show_qr: bool,
+    pub(crate) obs_qr_urls: BTreeMap<String, String>,
     pub(crate) obs_html: String,
 }
 
@@ -27,6 +29,8 @@ impl Default for AppSettings {
             message_format: "♫ {title} - {artist}".to_string(),
             send_notification_sound: false,
             obs_port: 17777,
+            obs_show_qr: true,
+            obs_qr_urls: BTreeMap::new(),
             obs_html: String::new(),
         }
     }
@@ -92,6 +96,14 @@ impl TrackInfo {
             && self.artist == other.artist
             && self.file_path == other.file_path
     }
+
+    pub(crate) fn key(&self) -> String {
+        if self.file_path.trim().is_empty() {
+            format!("{}|{}|{}", self.title, self.artist, self.album)
+        } else {
+            self.file_path.clone()
+        }
+    }
 }
 
 #[derive(Clone, Debug, Serialize)]
@@ -110,6 +122,7 @@ pub(crate) struct ObsPayload {
     pub(crate) artist: String,
     pub(crate) album: String,
     pub(crate) album_art_data_url: Option<String>,
+    pub(crate) qr_code_data_url: Option<String>,
     pub(crate) message: String,
     pub(crate) is_playing: bool,
 }

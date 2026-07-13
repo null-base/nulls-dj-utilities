@@ -261,6 +261,10 @@ fieldset,
   margin-top: 14px;
 }
 
+.qr-editor {
+  margin-top: 10px;
+}
+
 .section-row {
   justify-content: space-between;
   margin-top: 0;
