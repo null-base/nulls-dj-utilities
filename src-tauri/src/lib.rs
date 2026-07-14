@@ -1,3 +1,5 @@
+mod media;
+mod memory;
 mod models;
 mod monitor;
 mod obs;

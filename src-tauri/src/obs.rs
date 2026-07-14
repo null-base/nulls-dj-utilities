@@ -62,6 +62,10 @@ fn obs_payload(state: &SharedState) -> ObsPayload {
             artist: track.artist.clone(),
             album: track.album.clone(),
             album_art_data_url: track.album_art_data_url.clone(),
+            bpm: track.bpm,
+            position_seconds: track.position_seconds,
+            duration_seconds: track.duration_seconds,
+            source: track.source.clone(),
             qr_code_data_url: inner
                 .settings
                 .obs_show_qr
@@ -78,6 +82,10 @@ fn obs_payload(state: &SharedState) -> ObsPayload {
             artist: String::new(),
             album: String::new(),
             album_art_data_url: None,
+            bpm: None,
+            position_seconds: None,
+            duration_seconds: None,
+            source: String::new(),
             qr_code_data_url: None,
             message: String::new(),
             is_playing: false,
@@ -128,10 +136,11 @@ const OBS_HTML: &str = r##"<!doctype html>
     display: flex;
     align-items: center;
     gap: 28px;
-    width: 100%;
-    max-width: 100%;
+    box-sizing: border-box;
+    width: 100vw;
+    max-width: 100vw;
     padding: 20px 28px 20px 20px;
-    border-radius: 24px;
+    border-radius: 18px;
     background: linear-gradient(135deg, rgba(9, 11, 13, 0.86), rgba(25, 29, 31, 0.72));
     box-shadow: 0 18px 52px rgba(0,0,0,.38);
     color: white;
@@ -153,6 +162,11 @@ const OBS_HTML: &str = r##"<!doctype html>
     width: 100%;
     height: 100%;
     border-radius: 50%;
+  }
+  .record-disc {
+    position: absolute;
+    inset: 0;
+    border-radius: 50%;
     background:
       radial-gradient(circle at center, transparent 0 33%, rgba(255,255,255,.12) 34% 35%, transparent 36%),
       repeating-radial-gradient(circle at center, #111 0 7px, #1a1b1c 8px 10px),
@@ -161,8 +175,7 @@ const OBS_HTML: &str = r##"<!doctype html>
     box-shadow: inset 0 0 0 2px rgba(255,255,255,.08), inset 0 0 34px rgba(0,0,0,.9), 0 12px 32px rgba(0,0,0,.45);
     animation: spin 5s linear infinite;
   }
-  #record::after,
-  .record-ghost::after {
+  .record-disc::after {
     content: "";
     position: absolute;
     inset: 50%;
@@ -243,14 +256,11 @@ const OBS_HTML: &str = r##"<!doctype html>
     width: 100%;
     height: 100%;
   }
-  #wrap.changed {
-    animation: wrapChange .6s ease both;
-  }
   #wrap.changed #record {
-    animation: spin 5s linear infinite, recordIn .76s cubic-bezier(.18,.8,.18,1) both;
+    animation: recordIn .76s cubic-bezier(.18,.8,.18,1) both;
   }
   .record-ghost {
-    animation: spin 5s linear infinite, recordOut .76s cubic-bezier(.18,.8,.18,1) both;
+    animation: recordOut .76s cubic-bezier(.18,.8,.18,1) both;
   }
   #wrap.changed #label {
     animation: textKicker .42s ease both;
@@ -272,10 +282,6 @@ const OBS_HTML: &str = r##"<!doctype html>
   @keyframes pageLoad {
     0% { opacity: 0; transform: translateY(18px) scale(.985); filter: blur(8px); }
     100% { opacity: 1; transform: translateY(0) scale(1); filter: blur(0); }
-  }
-  @keyframes wrapChange {
-    0% { opacity: .94; filter: brightness(1.08); }
-    100% { opacity: 1; filter: brightness(1); }
   }
   @keyframes recordOut {
     0% { opacity: 1; transform: translateX(0) scale(1); filter: brightness(1); }
@@ -299,7 +305,7 @@ const OBS_HTML: &str = r##"<!doctype html>
   }
   @keyframes textLine {
     0% { opacity: 0; transform: translateX(18px); }
-    100% { opacity: 1; transform: translateY(0); }
+    100% { opacity: 1; transform: translateX(0); }
   }
   @keyframes qrChange {
     0% { opacity: 0; transform: translateX(12px) scale(.96); }
@@ -309,8 +315,10 @@ const OBS_HTML: &str = r##"<!doctype html>
 <div id="wrap" class="hidden">
   <div id="recordSlot">
     <div id="record">
-      <img id="art" alt="">
-      <div id="artFallback">♫</div>
+      <div class="record-disc">
+        <img id="art" alt="">
+        <div id="artFallback">♫</div>
+      </div>
     </div>
   </div>
   <div id="copy">
@@ -337,21 +345,23 @@ const qr = document.querySelector("#qr");
 let lastTrackKey = "";
 let renderedTitle = "";
 let titleTimer = 0;
+let artUrl = "";
+let emptyTicks = 0;
 async function tick() {
   try {
     const track = await fetch("/track", { cache: "no-store" }).then(r => r.json());
+    if (!track.isPlaying && wrap.classList.contains("loaded") && emptyTicks++ < 8) return;
+    if (track.isPlaying) emptyTicks = 0;
     const trackKey = track.isPlaying ? [track.title, track.artist, track.album].join("\n") : "";
-    const changed = trackKey && trackKey !== lastTrackKey;
+    const changed = Boolean(trackKey && trackKey !== lastTrackKey);
     const firstVisible = track.isPlaying && !wrap.classList.contains("loaded");
-    if (changed) cloneOutgoingRecord();
+    if (changed && !firstVisible) cloneOutgoingRecord();
     wrap.classList.toggle("hidden", !track.isPlaying);
     if (firstVisible) wrap.classList.add("loaded");
-    renderTitle(track.title || track.message || "", changed);
+    renderTitle(track.title || track.message || "", changed && !firstVisible);
     artist.textContent = track.artist || "";
     meta.textContent = track.album || "";
-    art.classList.toggle("hidden", !track.albumArtDataUrl);
-    artFallback.classList.toggle("hidden", !!track.albumArtDataUrl);
-    if (track.albumArtDataUrl && art.src !== track.albumArtDataUrl) art.src = track.albumArtDataUrl;
+    setArtwork(track.albumArtDataUrl || "");
     qrSlot.classList.toggle("hidden", !track.qrCodeDataUrl);
     if (track.qrCodeDataUrl && qr.src !== track.qrCodeDataUrl) qr.src = track.qrCodeDataUrl;
     if (changed && !firstVisible) restartAnimation();
@@ -369,6 +379,27 @@ function cloneOutgoingRecord() {
   ghost.classList.add("record-ghost");
   recordSlot.append(ghost);
   setTimeout(() => ghost.remove(), 800);
+}
+function setArtwork(nextUrl) {
+  if (!nextUrl) {
+    artUrl = "";
+    art.removeAttribute("src");
+    art.classList.add("hidden");
+    artFallback.classList.remove("hidden");
+    return;
+  }
+  if (nextUrl === artUrl) return;
+  artUrl = nextUrl;
+  art.classList.add("hidden");
+  artFallback.classList.remove("hidden");
+  const img = new Image();
+  img.onload = () => {
+    if (artUrl !== nextUrl) return;
+    art.src = nextUrl;
+    art.classList.remove("hidden");
+    artFallback.classList.add("hidden");
+  };
+  img.src = nextUrl;
 }
 function renderTitle(text, animated) {
   clearTimeout(titleTimer);

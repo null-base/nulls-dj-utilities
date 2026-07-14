@@ -10,6 +10,7 @@ const el = {
   title: $("#track-title"),
   artist: $("#track-artist"),
   album: $("#track-album"),
+  metrics: $("#track-metrics"),
   rekordboxStatus: $("#rekordbox-status"),
   qrUrl: $("#track-qr-url"),
   syncDot: $("#sync-dot"),
@@ -128,6 +129,11 @@ function renderDashboard() {
   el.title.textContent = track?.title || "Waiting for track...";
   el.artist.textContent = track ? track.artist || "Unknown artist" : "No track detected.";
   el.album.textContent = track?.album || "";
+  el.metrics.textContent = track
+    ? [formatBpm(track.bpm), formatTime(track.positionSeconds, track.durationSeconds), track.source]
+        .filter(Boolean)
+        .join(" · ")
+    : "";
   el.rekordboxStatus.textContent = snapshot.rekordboxStatus || "";
   el.albumArt.hidden = !track?.albumArtDataUrl;
   el.albumArt.src = track?.albumArtDataUrl || "";
@@ -230,6 +236,9 @@ function updatePreview() {
     title: "How Many Boogie",
     artist: "SKRYU; WAZGOGG; Fuma no KTR",
     album: "わすれもの",
+    bpm: 128,
+    positionSeconds: 65,
+    durationSeconds: 214,
   };
   el.preview.textContent = formatMessage(el.format.value, sample);
 }
@@ -244,7 +253,24 @@ function formatMessage(format, track) {
   result = result.replaceAll("{title}", track.title);
   result = result.replaceAll("{artist}", track.artist);
   result = result.replaceAll("{album}", track.album);
+  result = result.replaceAll("{bpm}", formatBpm(track.bpm));
+  result = result.replaceAll("{time}", formatTime(track.positionSeconds, track.durationSeconds));
   return result.trim() || "(empty)";
+}
+
+function formatBpm(value) {
+  return Number.isFinite(value) && value > 0 ? `${value.toFixed(1)} BPM` : "";
+}
+
+function formatTime(position, duration) {
+  if (!Number.isFinite(position)) return "";
+  const current = mmss(position);
+  return Number.isFinite(duration) && duration > 0 ? `${current} / ${mmss(duration)}` : current;
+}
+
+function mmss(value) {
+  const seconds = Math.max(0, Math.round(value));
+  return `${Math.floor(seconds / 60)}:${String(seconds % 60).padStart(2, "0")}`;
 }
 
 function clamp(value, min, max) {

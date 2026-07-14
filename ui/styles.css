@@ -209,6 +209,7 @@ fieldset,
 }
 
 #track-album,
+#track-metrics,
 #rekordbox-status {
   margin-top: 3px;
   overflow-wrap: anywhere;

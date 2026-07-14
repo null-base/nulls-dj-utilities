@@ -71,6 +71,8 @@ impl AppSettings {
         result = replace_or_remove(result, "{title}", &track.title);
         result = replace_or_remove(result, "{artist}", &track.artist);
         result = replace_or_remove(result, "{album}", &track.album);
+        result = replace_or_remove(result, "{bpm}", &track.bpm_label());
+        result = replace_or_remove(result, "{time}", &track.position_label());
 
         while result.contains(" -  - ") {
             result = result.replace(" -  - ", " - ");
@@ -88,6 +90,10 @@ pub(crate) struct TrackInfo {
     pub(crate) album: String,
     pub(crate) file_path: String,
     pub(crate) album_art_data_url: Option<String>,
+    pub(crate) bpm: Option<f32>,
+    pub(crate) position_seconds: Option<f64>,
+    pub(crate) duration_seconds: Option<f64>,
+    pub(crate) source: String,
 }
 
 impl TrackInfo {
@@ -104,6 +110,32 @@ impl TrackInfo {
             self.file_path.clone()
         }
     }
+
+    pub(crate) fn bpm_label(&self) -> String {
+        self.bpm
+            .filter(|value| value.is_finite() && *value > 0.0)
+            .map(|value| format!("{value:.1} BPM"))
+            .unwrap_or_default()
+    }
+
+    pub(crate) fn position_label(&self) -> String {
+        match (self.position_seconds, self.duration_seconds) {
+            (Some(position), Some(duration)) if duration > 0.0 => {
+                format!(
+                    "{} / {}",
+                    format_seconds(position),
+                    format_seconds(duration)
+                )
+            }
+            (Some(position), _) => format_seconds(position),
+            _ => String::new(),
+        }
+    }
+}
+
+pub(crate) fn format_seconds(seconds: f64) -> String {
+    let seconds = seconds.max(0.0).round() as u64;
+    format!("{}:{:02}", seconds / 60, seconds % 60)
 }
 
 #[derive(Clone, Debug, Serialize)]
@@ -122,6 +154,10 @@ pub(crate) struct ObsPayload {
     pub(crate) artist: String,
     pub(crate) album: String,
     pub(crate) album_art_data_url: Option<String>,
+    pub(crate) bpm: Option<f32>,
+    pub(crate) position_seconds: Option<f64>,
+    pub(crate) duration_seconds: Option<f64>,
+    pub(crate) source: String,
     pub(crate) qr_code_data_url: Option<String>,
     pub(crate) message: String,
     pub(crate) is_playing: bool,
@@ -143,6 +179,10 @@ mod tests {
             album: String::new(),
             file_path: String::new(),
             album_art_data_url: None,
+            bpm: None,
+            position_seconds: None,
+            duration_seconds: None,
+            source: String::new(),
         };
 
         assert_eq!(settings.format_message(&track), "♫ Song");
@@ -157,5 +197,10 @@ mod tests {
         .normalized();
 
         assert_eq!(settings.osc_delay_ms, 30_000);
+    }
+
+    #[test]
+    fn formats_seconds() {
+        assert_eq!(format_seconds(65.4), "1:05");
     }
 }
