@@ -111,12 +111,89 @@ fn sanitize_debug_text(text: &str) -> String {
 }
 
 const TRACK_INFO_BYTES: usize = 2000;
+const MAX_TRACK_SCAN_REGIONS: usize = 220;
 const MAX_ART_REGION_BYTES: usize = 8 * 1024 * 1024;
 const MAX_ART_BYTES: usize = 2 * 1024 * 1024;
 const MIN_ART_BYTES: usize = 32;
 const MAX_ART_SCAN_REGIONS: usize = 160;
 const PNG_SIGNATURE: &[u8] = b"\x89PNG\r\n\x1a\n";
 const JPEG_SIGNATURE: &[u8] = b"\xff\xd8";
+const UTF8_TRACK_LABELS: &[&[u8]] = &[b"Track Title", "トラックタイトル".as_bytes()];
+
+fn scanned_track_info_from_bytes(bytes: &[u8]) -> Option<(usize, String, LiveTrack)> {
+    for label in UTF8_TRACK_LABELS {
+        for start in find_all(bytes, label) {
+            let end = start.saturating_add(TRACK_INFO_BYTES).min(bytes.len());
+            let Some(text) = track_text_from_bytes(&bytes[start..end]) else {
+                continue;
+            };
+            let Some(track) = parse_track_info(&text) else {
+                continue;
+            };
+            return Some((start, text, track));
+        }
+    }
+
+    for label in ["Track Title", "トラックタイトル"] {
+        let needle = label
+            .encode_utf16()
+            .flat_map(u16::to_le_bytes)
+            .collect::<Vec<_>>();
+        for start in find_all(bytes, &needle) {
+            let end = start.saturating_add(TRACK_INFO_BYTES).min(bytes.len());
+            let Some(text) = track_text_from_bytes(&bytes[start..end]) else {
+                continue;
+            };
+            let Some(track) = parse_track_info(&text) else {
+                continue;
+            };
+            return Some((start, text, track));
+        }
+    }
+
+    None
+}
+
+fn best_scanned_track_from_regions(
+    platform: &str,
+    regions: impl IntoIterator<Item = (usize, usize)>,
+    mut read: impl FnMut(usize, usize) -> Option<Vec<u8>>,
+) -> Option<LiveTrack> {
+    let mut scanned = 0;
+    for (base, size) in regions {
+        if size == 0 || size > MAX_ART_REGION_BYTES {
+            continue;
+        }
+        scanned += 1;
+        if scanned > MAX_TRACK_SCAN_REGIONS {
+            break;
+        }
+        let Some(bytes) = read(base, size) else {
+            continue;
+        };
+        let Some((offset, text, track)) = scanned_track_info_from_bytes(&bytes) else {
+            continue;
+        };
+        debug_memory_status(
+            platform,
+            format!(
+                "auto track scan matched addr=0x{:X} scanned_regions={scanned}",
+                base + offset
+            ),
+        );
+        debug_memory_text(platform, "auto-scan", 0, base + offset, &text);
+        return Some(LiveTrack {
+            source: "Rekordbox".to_string(),
+            master_verified: true,
+            ..track
+        });
+    }
+    debug_memory_status(
+        platform,
+        format!("auto track scan found no metadata scanned_regions={scanned}"),
+    );
+    None
+}
 
 fn album_art_data_url_from_bytes(bytes: &[u8]) -> Option<(usize, String)> {
     let mut best: Option<(&str, &[u8])> = None;
@@ -260,7 +337,18 @@ mod platform {
         }
         super::debug_memory_status(
             "windows",
-            "offset metadata read failed; falling back to audio path scan",
+            "offset metadata read failed; trying auto track scan",
+        );
+        if let Some(track) = super::best_scanned_track_from_regions(
+            "windows",
+            readable_regions(process.0),
+            |base, size| read_memory(process.0, base, size),
+        ) {
+            return Ok(track);
+        }
+        super::debug_memory_status(
+            "windows",
+            "auto track scan failed; falling back to audio path scan",
         );
         scan_memory_for_audio_path(process.0).map(|file_path| super::LiveTrack {
             file_path,
@@ -819,7 +907,14 @@ mod platform {
         }
         super::debug_memory_status(
             "macos",
-            "offset metadata read failed; falling back to lsof audio path scan",
+            "offset metadata read failed; trying auto track scan",
+        );
+        if let Some(track) = current_track_from_scan() {
+            return Ok(track);
+        }
+        super::debug_memory_status(
+            "macos",
+            "auto track scan failed; falling back to lsof audio path scan",
         );
         current_track_path().map(|file_path| super::LiveTrack {
             file_path,
@@ -838,6 +933,14 @@ mod platform {
         let pid = rekordbox_pid()?.parse::<i32>().ok()?;
         let task = task_for_rekordbox(pid)?;
         super::best_album_art_from_regions("macos", readable_regions(task), |base, size| {
+            read_memory(task, base, size)
+        })
+    }
+
+    fn current_track_from_scan() -> Option<super::LiveTrack> {
+        let pid = rekordbox_pid()?.parse::<i32>().ok()?;
+        let task = task_for_rekordbox(pid)?;
+        super::best_scanned_track_from_regions("macos", readable_regions(task), |base, size| {
             read_memory(task, base, size)
         })
     }
@@ -1265,6 +1368,35 @@ mod tests {
         bytes.extend_from_slice(&[0, 0]);
 
         assert_eq!(track_text_from_bytes(&bytes).as_deref(), Some(text));
+    }
+
+    #[test]
+    fn scans_utf8_track_info_from_memory_bytes() {
+        let mut bytes = b"noise".to_vec();
+        bytes.extend_from_slice(
+            "トラックタイトル: I Hate You\nアーティスト: RoughSketch\nアルバム: MEGATON KICK 7"
+                .as_bytes(),
+        );
+        bytes.push(0);
+
+        let (_, _, track) = scanned_track_info_from_bytes(&bytes).expect("track");
+        assert_eq!(track.title, "I Hate You");
+        assert_eq!(track.artist, "RoughSketch");
+    }
+
+    #[test]
+    fn scans_utf16le_track_info_from_memory_bytes() {
+        let mut bytes = b"noise".to_vec();
+        bytes.extend(
+            "トラックタイトル: I Hate You\nアーティスト: RoughSketch"
+                .encode_utf16()
+                .flat_map(u16::to_le_bytes),
+        );
+        bytes.extend_from_slice(&[0, 0]);
+
+        let (_, _, track) = scanned_track_info_from_bytes(&bytes).expect("track");
+        assert_eq!(track.title, "I Hate You");
+        assert_eq!(track.artist, "RoughSketch");
     }
 
     #[test]
