@@ -48,6 +48,10 @@ jobs:
         with:
           cache: true
 
+      - name: Add macOS Rust target
+        if: runner.os == 'macOS'
+        run: rustup target add ${{ matrix.target }}
+
       - name: Show tool versions
         run: |
           mise --version
