@@ -30,11 +30,11 @@ pub(crate) fn settings_path() -> PathBuf {
 pub(crate) fn rekordbox_dirs() -> Vec<PathBuf> {
     #[cfg(target_os = "windows")]
     {
-        return env::var_os("APPDATA")
+        env::var_os("APPDATA")
             .map(PathBuf::from)
             .map(|path| path.join("Pioneer").join("rekordbox"))
             .into_iter()
-            .collect();
+            .collect()
     }
 
     #[cfg(target_os = "macos")]

@@ -320,12 +320,6 @@ mod platform {
     const MAX_REGION: usize = 16 * 1024 * 1024;
     const RKBX_LINK_OFFSETS: &str = include_str!("rkbx_link_offsets.txt");
 
-    pub(crate) fn current_track_path() -> Result<String, String> {
-        let pid = find_rekordbox_pid().ok_or_else(|| "rekordbox.exe was not found".to_string())?;
-        let process = ProcessHandle::open(pid)?;
-        scan_memory_for_audio_path(process.0)
-    }
-
     pub(crate) fn current_track() -> Result<super::LiveTrack, String> {
         let Some(pid) = find_rekordbox_pid() else {
             super::debug_memory_status("windows", "rekordbox.exe was not found");
