@@ -1400,6 +1400,27 @@ mod tests {
     }
 
     #[test]
+    fn track_scan_ignores_unlabeled_memory_noise() {
+        assert!(scanned_track_info_from_bytes(b"Title-ish but no useful labels").is_none());
+    }
+
+    #[test]
+    fn region_track_scan_returns_first_matching_track() {
+        let mut region = b"noise".to_vec();
+        region.extend_from_slice("Track Title: Song\nArtist: Artist\nAlbum: Album".as_bytes());
+        region.push(0);
+
+        let track = best_scanned_track_from_regions("test", [(0x1000, region.len())], |_, _| {
+            Some(region.clone())
+        })
+        .expect("track");
+
+        assert_eq!(track.title, "Song");
+        assert!(track.master_verified);
+        assert_eq!(track.source, "Rekordbox");
+    }
+
+    #[test]
     fn sanitizes_debug_memory_text() {
         let text = format!("a\0b\n{}", "x".repeat(1200));
         let sanitized = sanitize_debug_text(&text);

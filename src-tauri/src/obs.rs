@@ -435,3 +435,28 @@ tick();
 setInterval(tick, 1000);
 </script>
 </html>"##;
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn default_obs_html_uses_obs_compatible_record_spin() {
+        assert!(OBS_HTML.contains("@keyframes spin { to { transform: rotate(360deg); } }"));
+        assert!(OBS_HTML.contains("<div class=\"record-disc\">"));
+        assert!(!OBS_HTML.contains("@keyframes spin { to { rotate: 360deg; } }"));
+    }
+
+    #[test]
+    fn default_obs_html_does_not_animate_whole_wrap_on_track_change() {
+        assert!(!OBS_HTML.contains("#wrap.changed {\n    animation"));
+        assert!(OBS_HTML.contains("emptyTicks++ < 8"));
+    }
+
+    #[test]
+    fn default_obs_html_fits_browser_width() {
+        assert!(OBS_HTML.contains("box-sizing: border-box;"));
+        assert!(OBS_HTML.contains("width: 100vw;"));
+        assert!(OBS_HTML.contains("max-width: 100vw;"));
+    }
+}

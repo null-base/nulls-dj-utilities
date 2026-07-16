@@ -163,6 +163,20 @@ mod tests {
         ));
     }
 
+    #[test]
+    fn pending_track_does_not_keep_empty_or_media_display() {
+        assert!(!should_keep_current_track(
+            &Some(track("Rekordbox", Some(0.0))),
+            &None,
+            &None
+        ));
+        assert!(!should_keep_current_track(
+            &Some(track("Spotify", Some(0.0))),
+            &None,
+            &Some(track("Rekordbox", Some(20.0)))
+        ));
+    }
+
     fn track(source: &str, position_seconds: Option<f64>) -> TrackInfo {
         TrackInfo {
             title: "Song".to_string(),

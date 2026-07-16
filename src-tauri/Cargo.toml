@@ -1,10 +1,10 @@
 [package]
 name = "nulls-dj-utilities"
 version = "1.0.0"
-description = "Sync rekordbox now playing metadata to VRChat OSC and OBS browser sources."
+description = "null's DJ Utilities. Sync rekordbox now playing metadata to VRChat OSC and OBS browser sources."
 authors = ["null_base"]
 edition = "2021"
-license = "MIT"
+license = "Apache-2.0"
 
 [lib]
 name = "nulls_dj_utilities_lib"

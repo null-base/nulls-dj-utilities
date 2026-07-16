@@ -1,0 +1,144 @@
+name: Publish Nightly
+
+on:
+  workflow_run:
+    workflows:
+      - Build Desktop App
+    types:
+      - completed
+  workflow_dispatch:
+    inputs:
+      build_run_id:
+        description: Build Desktop App workflow run id to publish
+        required: true
+        type: string
+
+permissions:
+  actions: read
+  contents: write
+
+concurrency:
+  group: nightly-release
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    name: Publish Nightly Release
+    if: >-
+      github.event_name == 'workflow_dispatch' ||
+      (
+        github.event.workflow_run.conclusion == 'success' &&
+        github.event.workflow_run.event == 'push' &&
+        github.event.workflow_run.head_branch == 'develop'
+      )
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Resolve build run
+        id: build
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          WORKFLOW_RUN_ID: ${{ github.event.workflow_run.id }}
+          INPUT_RUN_ID: ${{ inputs.build_run_id }}
+          WORKFLOW_HEAD_SHA: ${{ github.event.workflow_run.head_sha }}
+        run: |
+          set -euo pipefail
+
+          run_id="${WORKFLOW_RUN_ID:-$INPUT_RUN_ID}"
+          head_sha="${WORKFLOW_HEAD_SHA:-}"
+
+          if [ -z "$run_id" ]; then
+            echo "::error::build_run_id is required for manual publishing"
+            exit 1
+          fi
+
+          if [ -z "$head_sha" ]; then
+            head_sha="$(gh run view "$run_id" --json headSha --jq .headSha)"
+          fi
+
+          echo "run_id=$run_id" >> "$GITHUB_OUTPUT"
+          echo "head_sha=$head_sha" >> "$GITHUB_OUTPUT"
+
+      - name: Download build artifacts
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          set -euo pipefail
+          gh run download "${{ steps.build.outputs.run_id }}" \
+            --pattern 'nulls-dj-utilities-*' \
+            --dir release-assets
+
+      - name: Prepare release files
+        run: |
+          set -euo pipefail
+          mkdir -p release-files
+
+          while IFS= read -r -d '' file; do
+            relative_path="${file#release-assets/}"
+            artifact_name="${relative_path%%/*}"
+
+            case "$file" in
+              *.exe) extension="exe" ;;
+              *.msi) extension="msi" ;;
+              *.dmg) extension="dmg" ;;
+              *) continue ;;
+            esac
+
+            output="release-files/${artifact_name}.${extension}"
+            echo "$file -> $output"
+            cp "$file" "$output"
+          done < <(
+            find release-assets -type f \
+              \( -name '*.exe' -o -name '*.msi' -o -name '*.dmg' \) \
+              -print0
+          )
+
+          if ! find release-files -type f -print -quit | grep -q .; then
+            echo "::error::No release files were found"
+            exit 1
+          fi
+
+          ls -lh release-files
+
+      - name: Create release notes
+        env:
+          HEAD_SHA: ${{ steps.build.outputs.head_sha }}
+        run: |
+          cat > nightly-notes.md <<EOF
+          ## null's DJ Utilities Nightly
+
+          \`develop\`ブランチから自動生成された開発版です。
+
+          - Commit: \`${HEAD_SHA}\`
+          - Built from workflow run: ${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${{ steps.build.outputs.run_id }}
+          - Published at: $(date -u '+%Y-%m-%d %H:%M:%S UTC')
+
+          > このReleaseはdevelopへのpushごとに置き換えられます。
+          > 安定性を重視する場合は正式版Releaseを使用してください。
+          EOF
+
+      - name: Replace Nightly release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          HEAD_SHA: ${{ steps.build.outputs.head_sha }}
+        run: |
+          set -euo pipefail
+
+          gh release delete nightly \
+            --yes \
+            --cleanup-tag || true
+
+          gh api \
+            --method DELETE \
+            "repos/${GITHUB_REPOSITORY}/git/refs/tags/nightly" || true
+
+          gh release create nightly \
+            release-files/* \
+            --target "$HEAD_SHA" \
+            --title "Nightly" \
+            --notes-file nightly-notes.md \
+            --prerelease \
+            --latest=false

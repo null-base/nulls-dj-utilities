@@ -1,28 +1,26 @@
 name: Build Desktop App
 
 on:
-  push:
-    branches:
-      - main
-      - develop
-    tags:
-      - "v*"
-  pull_request:
-    branches:
-      - main
-      - develop
+  workflow_run:
+    workflows:
+      - Analyze and Test
+    types:
+      - completed
   workflow_dispatch:
 
 permissions:
   contents: read
 
 concurrency:
-  group: desktop-build-${{ github.ref }}
+  group: desktop-build-${{ github.event.workflow_run.head_sha || github.sha }}
   cancel-in-progress: true
 
 jobs:
   build:
     name: Build (${{ matrix.name }})
+    if: github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success'
+    runs-on: ${{ matrix.os }}
+
     strategy:
       fail-fast: false
       matrix:
@@ -41,11 +39,11 @@ jobs:
             target: x86_64-apple-darwin
             artifact_name: nulls-dj-utilities-macos-x64
 
-    runs-on: ${{ matrix.os }}
-
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v6
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.workflow_run.head_sha || github.sha }}
 
       - name: Setup mise
         uses: jdx/mise-action@v4
@@ -56,19 +54,12 @@ jobs:
         if: runner.os == 'macOS'
         run: rustup target add ${{ matrix.target }}
 
-      - name: Show tool versions
-        run: |
-          mise --version
-          bun --version
-          rustc --version
-          cargo --version
-
       - name: Cache Rust
         uses: Swatinem/rust-cache@v2
         with:
           workspaces: src-tauri
 
-      - name: Install dependencies
+      - name: Install Bun dependencies
         run: bun install --frozen-lockfile
 
       - name: Build Windows
@@ -81,7 +72,7 @@ jobs:
 
       - name: Upload Windows artifacts
         if: runner.os == 'Windows'
-        uses: actions/upload-artifact@v6
+        uses: actions/upload-artifact@v4
         with:
           name: ${{ matrix.artifact_name }}
           if-no-files-found: error
@@ -92,7 +83,7 @@ jobs:
 
       - name: Upload macOS artifacts
         if: runner.os == 'macOS'
-        uses: actions/upload-artifact@v6
+        uses: actions/upload-artifact@v4
         with:
           name: ${{ matrix.artifact_name }}
           if-no-files-found: error
@@ -100,107 +91,3 @@ jobs:
           path: |
             src-tauri/target/${{ matrix.target }}/release/bundle/dmg/*.dmg
             src-tauri/target/${{ matrix.target }}/release/bundle/macos/*.app
-
-  nightly:
-    name: Publish Nightly Release
-    needs: build
-
-    if: >-
-      github.event_name == 'push' &&
-      github.ref == 'refs/heads/develop'
-
-    runs-on: ubuntu-latest
-
-    permissions:
-      contents: write
-
-    steps:
-      - name: Download build artifacts
-        uses: actions/download-artifact@v8
-        with:
-          pattern: nulls-dj-utilities-*
-          path: release-assets
-
-      - name: Prepare release files
-        shell: bash
-        run: |
-          set -euo pipefail
-
-          mkdir -p release-files
-
-          while IFS= read -r -d '' file; do
-            relative_path="${file#release-assets/}"
-            artifact_name="${relative_path%%/*}"
-
-            case "$file" in
-              *.exe)
-                extension="exe"
-                ;;
-              *.msi)
-                extension="msi"
-                ;;
-              *.dmg)
-                extension="dmg"
-                ;;
-              *)
-                continue
-                ;;
-            esac
-
-            output="release-files/${artifact_name}.${extension}"
-
-            echo "$file -> $output"
-            cp "$file" "$output"
-          done < <(
-            find release-assets -type f \
-              \( -name '*.exe' -o -name '*.msi' -o -name '*.dmg' \) \
-              -print0
-          )
-
-          if ! find release-files -type f -print -quit | grep -q .; then
-            echo "::error::No release files were found"
-            exit 1
-          fi
-
-          echo "Release files:"
-          ls -lh release-files
-
-      - name: Create Nightly release notes
-        shell: bash
-        run: |
-          cat > nightly-notes.md <<EOF
-          ## null's DJ Utilities Nightly
-
-          \`develop\`ブランチから自動生成された開発版です。
-
-          - Commit: \`${GITHUB_SHA}\`
-          - Built at: $(date -u '+%Y-%m-%d %H:%M:%S UTC')
-          - Workflow: ${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}
-
-          > このReleaseはdevelopへのpushごとに置き換えられます。
-          > 安定性を重視する場合は正式版Releaseを使用してください。
-          EOF
-
-      - name: Replace Nightly release
-        shell: bash
-        env:
-          GH_TOKEN: ${{ github.token }}
-          GH_REPO: ${{ github.repository }}
-        run: |
-          set -euo pipefail
-
-          gh release delete nightly \
-            --yes \
-            --cleanup-tag || true
-
-          gh api \
-            --method DELETE \
-            "repos/${GITHUB_REPOSITORY}/git/refs/tags/nightly" || true
-
-          gh release create nightly \
-            release-files/* \
-            --target "${GITHUB_SHA}" \
-            --title "Nightly" \
-            --notes-file nightly-notes.md \
-            --prerelease \
-            --latest=false

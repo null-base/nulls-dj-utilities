@@ -571,4 +571,18 @@ mod tests {
             Some("https://example.test/600x600bb.jpg")
         );
     }
+
+    #[test]
+    fn ignores_empty_or_invalid_itunes_artwork_response() {
+        assert!(itunes_artwork_url(br#"{"results":[]}"#).is_none());
+        assert!(itunes_artwork_url(b"not json").is_none());
+    }
+
+    #[test]
+    fn normalizes_rekordbox_bpm_and_duration_values() {
+        assert_eq!(normalize_bpm(12_345.0), Some(123.45));
+        assert_eq!(normalize_bpm(128.0), Some(128.0));
+        assert_eq!(normalize_duration(214_000.0), Some(214.0));
+        assert_eq!(normalize_duration(214.0), Some(214.0));
+    }
 }
