@@ -1,4 +1,4 @@
-name: 🪩 Build Desktop App
+name: Build Desktop App
 
 on:
   push:
@@ -15,6 +15,10 @@ on:
 
 permissions:
   contents: read
+
+concurrency:
+  group: desktop-build-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
   build:
@@ -73,7 +77,7 @@ jobs:
 
       - name: Build macOS
         if: runner.os == 'macOS'
-        run: bun run tauri build --target ${{ matrix.target }}
+        run: bun run build --target ${{ matrix.target }}
 
       - name: Upload Windows artifacts
         if: runner.os == 'Windows'
@@ -96,3 +100,107 @@ jobs:
           path: |
             src-tauri/target/${{ matrix.target }}/release/bundle/dmg/*.dmg
             src-tauri/target/${{ matrix.target }}/release/bundle/macos/*.app
+
+  nightly:
+    name: Publish Nightly Release
+    needs: build
+
+    if: >-
+      github.event_name == 'push' &&
+      github.ref == 'refs/heads/develop'
+
+    runs-on: ubuntu-latest
+
+    permissions:
+      contents: write
+
+    steps:
+      - name: Download build artifacts
+        uses: actions/download-artifact@v8
+        with:
+          pattern: nulls-dj-utilities-*
+          path: release-assets
+
+      - name: Prepare release files
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          mkdir -p release-files
+
+          while IFS= read -r -d '' file; do
+            relative_path="${file#release-assets/}"
+            artifact_name="${relative_path%%/*}"
+
+            case "$file" in
+              *.exe)
+                extension="exe"
+                ;;
+              *.msi)
+                extension="msi"
+                ;;
+              *.dmg)
+                extension="dmg"
+                ;;
+              *)
+                continue
+                ;;
+            esac
+
+            output="release-files/${artifact_name}.${extension}"
+
+            echo "$file -> $output"
+            cp "$file" "$output"
+          done < <(
+            find release-assets -type f \
+              \( -name '*.exe' -o -name '*.msi' -o -name '*.dmg' \) \
+              -print0
+          )
+
+          if ! find release-files -type f -print -quit | grep -q .; then
+            echo "::error::No release files were found"
+            exit 1
+          fi
+
+          echo "Release files:"
+          ls -lh release-files
+
+      - name: Create Nightly release notes
+        shell: bash
+        run: |
+          cat > nightly-notes.md <<EOF
+          ## null's DJ Utilities Nightly
+
+          \`develop\`ブランチから自動生成された開発版です。
+
+          - Commit: \`${GITHUB_SHA}\`
+          - Built at: $(date -u '+%Y-%m-%d %H:%M:%S UTC')
+          - Workflow: ${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}
+
+          > このReleaseはdevelopへのpushごとに置き換えられます。
+          > 安定性を重視する場合は正式版Releaseを使用してください。
+          EOF
+
+      - name: Replace Nightly release
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          set -euo pipefail
+
+          gh release delete nightly \
+            --yes \
+            --cleanup-tag || true
+
+          gh api \
+            --method DELETE \
+            "repos/${GITHUB_REPOSITORY}/git/refs/tags/nightly" || true
+
+          gh release create nightly \
+            release-files/* \
+            --target "${GITHUB_SHA}" \
+            --title "Nightly" \
+            --notes-file nightly-notes.md \
+            --prerelease \
+            --latest=false
