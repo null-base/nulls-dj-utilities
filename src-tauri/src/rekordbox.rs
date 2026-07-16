@@ -14,6 +14,7 @@ use crate::{
 };
 
 const DB_PASSWORD: &str = "402fd482c38817c35ffa8ffb8c7d93143b749e7d315df7a81732a1ff43608497";
+type AlbumArtCache = OnceLock<Mutex<Option<(String, Option<String>)>>>;
 
 pub(crate) struct TrackProbe {
     pub(crate) track: Option<TrackInfo>,
@@ -206,7 +207,7 @@ fn fill_missing_album_art(track: &mut TrackInfo) {
 }
 
 fn memory_album_art(track: &TrackInfo) -> Option<String> {
-    static CACHE: OnceLock<Mutex<Option<(String, Option<String>)>>> = OnceLock::new();
+    static CACHE: AlbumArtCache = OnceLock::new();
     let cache = CACHE.get_or_init(|| Mutex::new(None));
     let key = track.file_path.clone();
     let mut cached = cache.lock().expect("album art cache poisoned");
@@ -222,7 +223,7 @@ fn memory_album_art(track: &TrackInfo) -> Option<String> {
 }
 
 fn online_album_art(track: &TrackInfo) -> Option<String> {
-    static CACHE: OnceLock<Mutex<Option<(String, Option<String>)>>> = OnceLock::new();
+    static CACHE: AlbumArtCache = OnceLock::new();
     let key = format!("{}|{}|{}", track.title, track.artist, track.album);
     let cache = CACHE.get_or_init(|| Mutex::new(None));
     let mut cached = cache.lock().expect("online art cache poisoned");

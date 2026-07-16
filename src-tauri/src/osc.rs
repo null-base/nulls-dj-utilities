@@ -66,7 +66,7 @@ pub(crate) fn send_chatbox(
 fn write_osc_string(data: &mut Vec<u8>, value: &str) {
     data.extend_from_slice(value.as_bytes());
     data.push(0);
-    while data.len() % 4 != 0 {
+    while !data.len().is_multiple_of(4) {
         data.push(0);
     }
 }

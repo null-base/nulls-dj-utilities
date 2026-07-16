@@ -5,9 +5,11 @@ use std::{
 };
 
 use base64::{engine::general_purpose::STANDARD as BASE64, Engine};
-use qrcode::{render::svg, QrCode};
+use qrcode::{render::svg, EcLevel, QrCode};
 
 use crate::{models::ObsPayload, state::SharedState};
+
+const QR_IMAGE_SIZE: u32 = 320;
 
 pub(crate) fn spawn_obs_server(state: SharedState) {
     thread::spawn(move || {
@@ -99,11 +101,11 @@ fn qr_code_data_url(url: &str) -> Option<String> {
         return None;
     }
 
-    let code = QrCode::new(url).ok()?;
+    let code = QrCode::with_error_correction_level(url, EcLevel::H).ok()?;
     let svg = code
         .render::<svg::Color>()
-        .min_dimensions(128, 128)
-        .dark_color(svg::Color("#111"))
+        .min_dimensions(QR_IMAGE_SIZE, QR_IMAGE_SIZE)
+        .dark_color(svg::Color("#000"))
         .light_color(svg::Color("#fff"))
         .build();
     Some(format!("data:image/svg+xml;base64,{}", BASE64.encode(svg)))
@@ -244,17 +246,18 @@ const OBS_HTML: &str = r##"<!doctype html>
   }
   #qrSlot {
     flex: 0 0 auto;
-    width: 116px;
-    height: 116px;
-    padding: 8px;
-    border-radius: 16px;
-    background: rgba(255,255,255,.94);
+    width: 156px;
+    height: 156px;
+    padding: 12px;
+    border-radius: 10px;
+    background: #fff;
     box-shadow: 0 12px 28px rgba(0,0,0,.28);
   }
   #qr {
     display: block;
     width: 100%;
     height: 100%;
+    image-rendering: pixelated;
   }
   #wrap.changed #record {
     animation: recordIn .76s cubic-bezier(.18,.8,.18,1) both;
@@ -458,5 +461,23 @@ mod tests {
         assert!(OBS_HTML.contains("box-sizing: border-box;"));
         assert!(OBS_HTML.contains("width: 100vw;"));
         assert!(OBS_HTML.contains("max-width: 100vw;"));
+    }
+
+    #[test]
+    fn qr_code_is_large_and_high_contrast_for_streaming() {
+        let url = qr_code_data_url("https://example.test").expect("qr");
+        let svg = String::from_utf8(
+            BASE64
+                .decode(url.strip_prefix("data:image/svg+xml;base64,").unwrap())
+                .unwrap(),
+        )
+        .unwrap();
+
+        let qr_image_size = QR_IMAGE_SIZE;
+        assert!(qr_image_size >= 320);
+        assert!(svg.contains("#000"));
+        assert!(OBS_HTML.contains("width: 156px;"));
+        assert!(OBS_HTML.contains("background: #fff;"));
+        assert!(OBS_HTML.contains("image-rendering: pixelated;"));
     }
 }

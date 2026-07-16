@@ -39,7 +39,7 @@ pub(crate) fn rekordbox_dirs() -> Vec<PathBuf> {
 
     #[cfg(target_os = "macos")]
     {
-        return env::var_os("HOME")
+        env::var_os("HOME")
             .map(PathBuf::from)
             .map(|home| {
                 vec![
@@ -55,7 +55,7 @@ pub(crate) fn rekordbox_dirs() -> Vec<PathBuf> {
                     home.join("Library").join("Pioneer").join("rekordbox6"),
                 ]
             })
-            .unwrap_or_default();
+            .unwrap_or_default()
     }
 
     #[cfg(not(any(target_os = "windows", target_os = "macos")))]
