@@ -297,12 +297,13 @@ const OBS_HTML: &str = r##"<!doctype html>
   #minimalCopy {
     position: absolute;
     top: 50%;
-    left: 50%;
-    width: calc(100% - 264px);
+    left: 24px;
+    width: calc(100% - 108px);
     min-width: 0;
-    transform: translate(-50%, -50%);
-    text-align: center;
+    transform: translateY(-50%);
+    text-align: left;
   }
+  #wrap.has-qr #minimalCopy { left: 116px; width: calc(100% - 200px); }
   #miniClock {
     position: absolute;
     top: 50%;
@@ -325,7 +326,7 @@ const OBS_HTML: &str = r##"<!doctype html>
     font-size: 26px;
     font-weight: 500;
     line-height: 1.3;
-    text-align: center;
+    text-align: left;
     white-space: nowrap;
     text-overflow: ellipsis;
   }
@@ -379,7 +380,8 @@ const OBS_HTML: &str = r##"<!doctype html>
   .hidden { display: none !important; }
   @media (max-width: 600px) {
     #wrap[data-theme="minimal"] #minimal { min-height: 100vh; }
-    #minimalCopy { width: calc(100% - 184px); }
+    #minimalCopy { left: 12px; width: calc(100% - 82px); }
+    #wrap.has-qr #minimalCopy { left: 68px; width: calc(100% - 138px); }
     #miniTime { font-size: 18px; }
     #miniTitle { font-size: 20px; }
     #miniClock { right: 10px; }
@@ -646,7 +648,7 @@ mod tests {
     }
 
     #[test]
-    fn setlog_theme_centers_title_and_shows_japan_time_on_black() {
+    fn setlog_theme_left_aligns_title_and_shows_japan_time_on_black() {
         assert!(OBS_HTML.contains("#wrap[data-theme=\"minimal\"]"));
         assert!(OBS_HTML.contains("id=\"miniTitle\""));
         assert!(OBS_HTML.contains("id=\"miniTime\""));
@@ -654,7 +656,10 @@ mod tests {
         assert!(!OBS_HTML.contains("id=\"miniArtist\""));
         assert!(OBS_HTML.contains("border-radius: 18px;"));
         assert!(OBS_HTML.contains("html[data-theme=\"minimal\"] body { background: #000; }"));
-        assert!(OBS_HTML.contains("left: 50%;\n    width: calc(100% - 264px);"));
+        assert!(OBS_HTML.contains("left: 24px;\n    width: calc(100% - 108px);"));
+        assert!(OBS_HTML
+            .contains("#wrap.has-qr #minimalCopy { left: 116px; width: calc(100% - 200px); }"));
+        assert!(OBS_HTML.contains("#miniTitle {\n    max-width: 100%;\n    overflow: hidden;\n    font-size: 26px;\n    font-weight: 500;\n    line-height: 1.3;\n    text-align: left;"));
         assert!(OBS_HTML.contains("timeZone: \"Asia/Tokyo\""));
         assert!(!OBS_HTML.contains("miniTimeZone"));
         assert!(OBS_HTML.contains("right: 24px;"));
