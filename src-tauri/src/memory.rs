@@ -815,6 +815,52 @@ mod platform {
             .to_string_lossy()
             .to_string()
     }
+
+    #[cfg(test)]
+    mod tests {
+        use super::*;
+
+        fn assert_pointer(pointer: &Pointer, offsets: &[usize], final_offset: usize) {
+            assert_eq!(pointer.offsets, offsets);
+            assert_eq!(pointer.final_offset, final_offset);
+        }
+
+        #[test]
+        fn parses_rekordbox_7_2_10_windows_offsets_for_all_decks() {
+            let sets = parse_offsets(RKBX_LINK_OFFSETS);
+            let offsets = sets
+                .iter()
+                .find(|offsets| offsets.version == "7.2.10")
+                .expect("7.2.10 offsets");
+
+            assert_pointer(&offsets.masterdeck_index, &[0x05AE3048, 0x20, 0x278], 0x124);
+            assert_eq!(offsets.current_bpm.len(), 4);
+            assert_eq!(offsets.sample_position.len(), 4);
+            assert_eq!(offsets.track_info.len(), 4);
+
+            let deck_offsets = [0x0, 0x8, 0x10, 0x18];
+            let track_offsets = [0x80, 0x88, 0x90, 0x98];
+            for (deck, (&deck_offset, &track_offset)) in
+                deck_offsets.iter().zip(track_offsets.iter()).enumerate()
+            {
+                assert_pointer(
+                    &offsets.current_bpm[deck],
+                    &[0x059E6EB8, deck_offset, 0x2B0],
+                    0x1A0,
+                );
+                assert_pointer(
+                    &offsets.sample_position[deck],
+                    &[0x059E6EB8, deck_offset, 0x2B0],
+                    0x130,
+                );
+                assert_pointer(
+                    &offsets.track_info[deck],
+                    &[0x05AE3048, 0x20, 0x410, track_offset, 0x168, 0xF0],
+                    0,
+                );
+            }
+        }
+    }
 }
 
 #[cfg(target_os = "macos")]

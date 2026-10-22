@@ -1,4 +1,4 @@
-# Public rkbx_link evaluation offsets for Rekordbox 7.2.2.
+# Windows offsets for Rekordbox 7.2.2 and 7.2.10.
 # Format: version, masterdeck pointer, then per deck:
 # current_bpm, sample_position, track_info, anlz_path.
 7.2.2
@@ -23,3 +23,26 @@
 0564B038 18 2B0 130
 05737C48 20 410 98 168 F0 0
 057696B8 20 3F0 0
+
+7.2.10
+05AE3048 20 278 124
+
+059E6EB8 0 2B0 1A0
+059E6EB8 0 2B0 130
+05AE3048 20 410 80 168 F0 0
+05B1BB98 8 3F0 0
+
+059E6EB8 8 2B0 1A0
+059E6EB8 8 2B0 130
+05AE3048 20 410 88 168 F0 0
+05B1BB98 10 3F0 0
+
+059E6EB8 10 2B0 1A0
+059E6EB8 10 2B0 130
+05AE3048 20 410 90 168 F0 0
+05B1BB98 18 3F0 0
+
+059E6EB8 18 2B0 1A0
+059E6EB8 18 2B0 130
+05AE3048 20 410 98 168 F0 0
+05B1BB98 20 3F0 0
