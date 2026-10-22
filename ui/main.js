@@ -32,6 +32,7 @@ const el = {
   interval: $("#polling-interval"),
   notification: $("#notification-sound"),
   obsPort: $("#obs-port"),
+  obsTheme: $("#obs-theme"),
   obsPreview: $("#obs-preview"),
   obsShowQr: $("#obs-show-qr"),
   obsHtml: $("#obs-html"),
@@ -95,10 +96,11 @@ for (const input of [
   el.interval,
   el.notification,
   el.obsPort,
+  el.obsTheme,
   el.obsShowQr,
   el.obsHtml,
 ]) {
-  input.addEventListener(input.type === "checkbox" ? "change" : "input", () => {
+  input.addEventListener(input.type === "checkbox" || input.tagName === "SELECT" ? "change" : "input", () => {
     editingSettings = true;
     updateSettingsPreview();
     scheduleAutoSave();
@@ -195,6 +197,7 @@ function renderSettings() {
   el.interval.value = settings.pollingIntervalMs;
   el.notification.checked = settings.sendNotificationSound;
   el.obsPort.value = settings.obsPort;
+  el.obsTheme.value = settings.obsTheme;
   el.obsShowQr.checked = settings.obsShowQr;
   el.obsHtml.value = settings.obsHtml;
   updateSettingsPreview();
@@ -209,6 +212,7 @@ function readSettings() {
     messageFormat: el.format.value,
     sendNotificationSound: el.notification.checked,
     obsPort: clamp(safeNumber(el.obsPort.value, 17777), 1, 65535),
+    obsTheme: el.obsTheme.value,
     obsShowQr: el.obsShowQr.checked,
     obsQrUrls: readQrUrls(),
     obsHtml: el.obsHtml.value,

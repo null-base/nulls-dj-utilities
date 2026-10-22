@@ -16,6 +16,7 @@ pub(crate) struct AppSettings {
     pub(crate) obs_port: u16,
     pub(crate) obs_show_qr: bool,
     pub(crate) obs_qr_urls: BTreeMap<String, String>,
+    pub(crate) obs_theme: String,
     pub(crate) obs_html: String,
 }
 
@@ -31,6 +32,7 @@ impl Default for AppSettings {
             obs_port: 17777,
             obs_show_qr: true,
             obs_qr_urls: BTreeMap::new(),
+            obs_theme: "record".to_string(),
             obs_html: String::new(),
         }
     }
@@ -62,6 +64,9 @@ impl AppSettings {
         self.polling_interval_ms = self.polling_interval_ms.clamp(500, 30_000);
         if self.message_format.trim().is_empty() {
             self.message_format = AppSettings::default().message_format;
+        }
+        if self.obs_theme != "minimal" {
+            self.obs_theme = "record".to_string();
         }
         self
     }
@@ -150,6 +155,7 @@ pub(crate) struct HistoryEntry {
 #[derive(Serialize)]
 #[serde(rename_all = "camelCase")]
 pub(crate) struct ObsPayload {
+    pub(crate) theme: String,
     pub(crate) title: String,
     pub(crate) artist: String,
     pub(crate) album: String,
@@ -197,6 +203,23 @@ mod tests {
         .normalized();
 
         assert_eq!(settings.osc_delay_ms, 30_000);
+    }
+
+    #[test]
+    fn defaults_obs_theme_for_existing_settings() {
+        let settings: AppSettings = serde_json::from_str("{}").unwrap();
+        assert_eq!(settings.obs_theme, "record");
+    }
+
+    #[test]
+    fn preserves_minimal_obs_theme() {
+        let settings = AppSettings {
+            obs_theme: "minimal".to_string(),
+            ..Default::default()
+        }
+        .normalized();
+
+        assert_eq!(settings.obs_theme, "minimal");
     }
 
     #[test]
